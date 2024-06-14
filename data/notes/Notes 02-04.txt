@@ -1,0 +1,8 @@
+> SIX GENOMES, REPLICATE RESULTS
+> GET SUPPLEMENTARY TABLES (https://www.nature.com/articles/s41586-020-2486-3#MOESM1)
+> CHECK GITHUB (https://github.com/strongles/ervin) -> local BLAST con gag, pol y el otro.
+> CHECK DISTRIBUTION OF E-VALUES FOR THE BLAST
+> CHECK RETROTACTOR (https://github.com/PatricJernLab/RetroTector) # APPARENTLY IT WORKS IN UNIX
+>> RETRIEVES RETROVIRAL SEQUENCE FROM A FASTA
+
+> CHECK LTRharvest (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-9-18)
