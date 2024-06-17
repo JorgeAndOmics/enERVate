@@ -1,23 +1,27 @@
-import coloredlogs
 from Bio import Entrez, SeqIO
 from Bio.Blast import NCBIXML
-import pandas as pd
 
 import defaults
+import pandas as pd
 import os
 import subprocess
 import concurrent.futures
 import pickle
-import coloredlogs, logging
 from collections import defaultdict
 
 
 import logging, coloredlogs
 
 # Configure coloredlogs with the custom field and level styles
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s', handlers=[
+        logging.FileHandler(os.path.join(defaults.LOG_DIR, 'virus_blasting_log.txt')),
+        logging.StreamHandler()
+             ]
+                    )
+
 coloredlogs.install(
     level='DEBUG',
-    fmt='%(asctime)s %(hostname)s %(message)s',
+    fmt='%(asctime)s - %(message)s',
     level_styles=defaults.LEVEL_STYLES,
     field_styles=defaults.FIELD_STYLES
 )
@@ -25,10 +29,10 @@ coloredlogs.install(
 class Datahub:
         bat_species = defaults.BAT_SPECIES
         mammalian_species = defaults.MAMMAL_SPECIES
-        probes = defaults.PROBES
         full_species = bat_species + mammalian_species
-        primary_blast_dir = os.path.join(default.FASTA_DIR, 'tblastn')
+        probes = defaults.PROBES
         merged_blast_dir = os.path.join(default.FASTA_DIR, 'tblastn_merged')
+        tmp_dir = defaults.TMP_DIR
         virus_db = r'\\wsl$\Ubuntu\home\biouser\.ervin\virus_db_store\Viruses'
 
 
@@ -43,10 +47,10 @@ def virus_blaster():
 
                     file_score_dict = {}
 
-                    for file in os.listdir(os.path.join(Datahub.primary_blast_dir, probe, species, virus)):
-                        virus_file = os.path.join(os.path.join(Datahub.primary_blast_dir, probe, species, virus, file))
+                    for file in os.listdir(os.path.join(Datahub.merged_blast_dir, probe, species, virus)):
+                        virus_file = os.path.join(os.path.join(Datahub.merged_blast_dir, probe, species, virus, file))
 
-                        key = file.split('.')[0]
+                        key = file.replace('.fasta', '')
                         virus_family = file.split(';')[0]
                         virus_name = file.split(';')[1]
                         species = file.split(';')[2]
@@ -80,7 +84,7 @@ def virus_blaster():
                                 return
 
                             # Parse the BLAST results
-                            with open(os.path.join('data', 'tmp', 'tmp_result.xml')) as result_handle:
+                            with open(os.path.join(Datahub.tmp_dir, 'tmp_result.xml')) as result_handle:
                                 blast_records = NCBIXML.parse(result_handle)
                                 for blast_record in blast_records:
                                     if not blast_record.alignments:

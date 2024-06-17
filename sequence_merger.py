@@ -10,9 +10,15 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging, coloredlogs
 
 # Configure coloredlogs with the custom field and level styles
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s', handlers=[
+        logging.FileHandler(os.path.join(defaults.LOG_DIR, 'merging_log.txt')),
+        logging.StreamHandler()
+             ]
+                    )
+
 coloredlogs.install(
     level='DEBUG',
-    fmt='%(asctime)s %(hostname)s %(message)s',
+    fmt='%(asctime)s - %(message)s',
     level_styles=defaults.LEVEL_STYLES,
     field_styles=defaults.FIELD_STYLES
 )
@@ -22,8 +28,7 @@ class Datahub:
     mammalian_species = defaults.MAMMAL_SPECIES
     probes = defaults.PROBES
     full_species = bat_species + mammalian_species
-    primary_blast_dir = os.path.join('data', 'fastas', 'tblastn')
-    virus_db = r'\\wsl$\Ubuntu\home\biouser\.ervin\virus_db_store\Viruses'
+    primary_blast_dir = os.path.join(defaults.FASTA_DIR, 'tblastn')
 
 def parse_fasta_headers(directory):
     """Parses the headers of FASTA files in the directory and returns a list of sequences with metadata."""
@@ -37,8 +42,9 @@ def parse_fasta_headers(directory):
                 try:
                     for record in SeqIO.parse(filepath, "fasta"):
                         header_parts = filename.replace('.fasta', '').split(';')
-                        if len(header_parts) == 8:
+                        if len(header_parts) > 0:
                             try:
+                                frame = int(header_parts[7].split('s')[1])
                                 sequences.append({
                                     "virus_family": header_parts[0],
                                     "virus_name": header_parts[1],
@@ -47,7 +53,8 @@ def parse_fasta_headers(directory):
                                     "n field": header_parts[4],
                                     "start": int(header_parts[5].split('-')[1]),
                                     "end": int(header_parts[6].split('-')[1]),
-                                    "frame" : header_parts[7],
+                                    "frame": frame,
+                                    "strand": '+' if frame > 0 else '-',
                                     "accession_id": header_parts[8],
                                     "sequence": str(record.seq),
                                     "fullpath": filepath
@@ -66,17 +73,17 @@ def merge_overlapping_sequences(sequences):
     merged_sequences_dict = {}
 
     try:
-        # Group sequences by accession_id and frame
-        sequences_by_accession_and_frame = {}
+        # Group sequences by accession_id and strand
+        sequences_by_accession_and_strand = {}
         for seq in sequences:
-            key = (seq["accession_id"], seq["frame"].split('s')[-1])
-            if key not in sequences_by_accession_and_frame:
-                sequences_by_accession_and_frame[key] = []
-            sequences_by_accession_and_frame[key].append(seq)
+            key = (seq["accession_id"], seq["strand"])
+            if key not in sequences_by_accession_and_strand:
+                sequences_by_accession_and_strand[key] = []
+            sequences_by_accession_and_strand[key].append(seq)
 
-        for (accession_id, frame), seqs in sequences_by_accession_and_frame.items():
+        for (accession_id, strand), seqs in sequences_by_accession_and_strand.items():
             seqs.sort(key=lambda x: x["start"])
-            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}, frame: {frame}")
+            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}, strand: {strand}")
 
             current_seq = seqs[0]
             for next_seq in seqs[1:]:
@@ -133,7 +140,16 @@ def write_merged_sequences(original_dir, target_dir, merged_sequences, all_seque
                                 f"expected {expected_length}, got {len(seq['sequence'])}")
                 continue
 
-            header = f"{seq['virus_family']};{seq['virus_name']};{seq['species']};{seq['probe']};n();st-{seq['start']};end-{seq['end']};{accession_ids[0]}.fasta"
+            header = (f"{seq['virus_family']};"
+                      f"{seq['virus_name']};"
+                      f"{seq['species']};"
+                      f"{seq['probe']};"
+                      f"n();"
+                      f"st-{seq['start']};"
+                      f"end-{seq['end']};"
+                      f"{seq['strand']};"
+                      f"{accession_ids[0]}.fasta")
+
             record = SeqRecord(Seq(seq["sequence"]), id=header, description="")
             output_filepath = os.path.join(target_dir, header)
             with open(output_filepath, "w") as output_file:
@@ -155,7 +171,7 @@ def write_merged_sequences(original_dir, target_dir, merged_sequences, all_seque
                              f"Probe: {seq['probe']} \n"
                              f"Start: {seq['start']} \n"
                              f"End: {seq['end']} \n"
-                             f"Frame: {seq['frame']} \n"
+                             f"Strand: {seq['strand']} \n"
                              f"Accession ID: {seq['accession_id']} \n")
             except Exception as e:
                 logging.error(f"Error copying file {seq['fullpath']} to {target_dir}: {e}")

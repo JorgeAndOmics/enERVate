@@ -7,9 +7,19 @@ import subprocess
 import pickle
 import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure coloredlogs with the custom field and level styles
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s', handlers=[
+        logging.FileHandler(os.path.join(defaults.LOG_DIR, 'extending_log.txt')),
+        logging.StreamHandler()
+             ]
+                    )
 
+coloredlogs.install(
+    level='DEBUG',
+    fmt='%(asctime)s - %(message)s',
+    level_styles=defaults.LEVEL_STYLES,
+    field_styles=defaults.FIELD_STYLES
+)
 
 class Datahub:
     expansion_size = EXPANSION_SIZE

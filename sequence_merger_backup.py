@@ -14,11 +14,7 @@ coloredlogs.install(
     level='DEBUG',
     fmt='%(asctime)s %(hostname)s %(message)s',
     level_styles=defaults.LEVEL_STYLES,
-    field_styles=defaults.FIELD_STYLES,
-    handlers=[
-        logging.FileHandler(os.path.join(defaults.LOG_DIR, '%(asctime)s_merging_log.txt')),
-        logging.StreamHandler()
-             ]
+    field_styles=defaults.FIELD_STYLES
 )
 
 class Datahub:
@@ -26,7 +22,8 @@ class Datahub:
     mammalian_species = defaults.MAMMAL_SPECIES
     probes = defaults.PROBES
     full_species = bat_species + mammalian_species
-    primary_blast_dir = os.path.join(default.FASTA_DIR, 'tblastn')
+    primary_blast_dir = os.path.join('data', 'fastas', 'tblastn')
+    virus_db = r'\\wsl$\Ubuntu\home\biouser\.ervin\virus_db_store\Viruses'
 
 def parse_fasta_headers(directory):
     """Parses the headers of FASTA files in the directory and returns a list of sequences with metadata."""
@@ -50,8 +47,7 @@ def parse_fasta_headers(directory):
                                     "n field": header_parts[4],
                                     "start": int(header_parts[5].split('-')[1]),
                                     "end": int(header_parts[6].split('-')[1]),
-                                    "frame": int(header_parts[7].split('s')[1]),
-                                    "strand": 'positive' if frame > 0 else 'negative',
+                                    "frame" : header_parts[7],
                                     "accession_id": header_parts[8],
                                     "sequence": str(record.seq),
                                     "fullpath": filepath
@@ -70,17 +66,17 @@ def merge_overlapping_sequences(sequences):
     merged_sequences_dict = {}
 
     try:
-        # Group sequences by accession_id and strand
-        sequences_by_accession_and_strand = {}
+        # Group sequences by accession_id and frame
+        sequences_by_accession_and_frame = {}
         for seq in sequences:
-            key = (seq["accession_id"], seq["strand"])
-            if key not in sequences_by_accession_and_strand:
-                sequences_by_accession_and_strand[key] = []
-            sequences_by_accession_and_strand[key].append(seq)
+            key = (seq["accession_id"], seq["frame"].split('s')[-1])
+            if key not in sequences_by_accession_and_frame:
+                sequences_by_accession_and_frame[key] = []
+            sequences_by_accession_and_frame[key].append(seq)
 
-        for (accession_id, strand), seqs in sequences_by_accession_and_strand.items():
+        for (accession_id, frame), seqs in sequences_by_accession_and_frame.items():
             seqs.sort(key=lambda x: x["start"])
-            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}, strand: {strand}")
+            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}, frame: {frame}")
 
             current_seq = seqs[0]
             for next_seq in seqs[1:]:
@@ -159,7 +155,7 @@ def write_merged_sequences(original_dir, target_dir, merged_sequences, all_seque
                              f"Probe: {seq['probe']} \n"
                              f"Start: {seq['start']} \n"
                              f"End: {seq['end']} \n"
-                             f"Strand: {seq['strand']} \n"
+                             f"Frame: {seq['frame']} \n"
                              f"Accession ID: {seq['accession_id']} \n")
             except Exception as e:
                 logging.error(f"Error copying file {seq['fullpath']} to {target_dir}: {e}")

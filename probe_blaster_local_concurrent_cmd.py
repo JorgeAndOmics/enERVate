@@ -11,9 +11,16 @@ import re
 import logging, coloredlogs
 
 # Configure coloredlogs with the custom field and level styles
+# Configure coloredlogs with the custom field and level styles
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s', handlers=[
+        logging.FileHandler(os.path.join(defaults.LOG_DIR, 'tblastn_log.txt')),
+        logging.StreamHandler()
+             ]
+                    )
+
 coloredlogs.install(
     level='DEBUG',
-    fmt='%(asctime)s %(message)s',
+    fmt='%(asctime)s - %(message)s',
     level_styles=defaults.LEVEL_STYLES,
     field_styles=defaults.FIELD_STYLES
 )
@@ -33,7 +40,8 @@ class Datahub:
     species_db = defaults.SPECIES_DB
     full_species_taxid: dict = {}
     probes: list = defaults.PROBES
-    with open(os.path.join('data', 'pickles', 'full_probes.pkl'), 'rb') as input_file:
+    tmp_dir = defaults.TMP_DIR
+    with open(os.path.join(defaults.PICKLE_DIR, 'full_probes.pkl'), 'rb') as input_file:
         probes_dict = pickle.load(input_file)
 
 
@@ -50,10 +58,10 @@ def get_tax_id():
 def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_find_counter, db_path, e_value=Datahub.e_value):
     Entrez.email = Datahub.Entrez_email
     try:
-        query_file = os.path.join('data', 'tmp', f'tmp_query.fasta')
+        query_file = os.path.join(Datahub.tmp_dir, f'tmp_query.fasta')
         SeqIO.write(seq_record, query_file, 'fasta')
 
-        output_file = os.path.join('data', 'tmp', f'tmp_result.xml')
+        output_file = os.path.join(Datahub.tmp_dir, f'tmp_result.xml')
 
         # Construct the tblastn command
         tblastn_cmd = [

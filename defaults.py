@@ -1,3 +1,7 @@
+import os
+import sys
+import shutil
+
 BAT_SPECIES: list = ['Rhinolophus ferrumequinum']
 MAMMAL_SPECIES: list = []
 PROBES: list = ['gag',
@@ -52,3 +56,5 @@ FIELD_STYLES = {
 SPECIES_DB = '/mnt/v/databases/local/Rhinolophus_ferrumequinum/Rhinolophus_ferrumequinum'
 FASTA_DIR = os.path.join('data', 'fastas')
 LOG_DIR = os.path.join('data', 'logs')
+PICKLE_DIR = os.path.join('data', 'pickles')
+TMP_DIR = os.path.join('data', 'tmp')
