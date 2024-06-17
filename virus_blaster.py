@@ -27,8 +27,8 @@ class Datahub:
         mammalian_species = defaults.MAMMAL_SPECIES
         probes = defaults.PROBES
         full_species = bat_species + mammalian_species
-        primary_blast_dir = os.path.join('data', 'fastas', 'tblastn')
-        merged_blast_dir = os.path.join('data', 'fastas', 'tblastn_merged')
+        primary_blast_dir = os.path.join(default.FASTA_DIR, 'tblastn')
+        merged_blast_dir = os.path.join(default.FASTA_DIR, 'tblastn_merged')
         virus_db = r'\\wsl$\Ubuntu\home\biouser\.ervin\virus_db_store\Viruses'
 
 
