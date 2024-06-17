@@ -29,16 +29,18 @@ def seq_expander(expansion_size=Datahub.expansion_size):
                 blast_number = file.split(';')[4].split('n')[1]
                 subject_start = int(file.split(';')[5].split('-')[1])
                 subject_end = int(file.split(';')[6].split('-')[1])
-                accession_id = file.split(';')[7].split('.')[0].replace("_", ".")
+                reading_frame = file.split(';')[7].split('.')[1]
+                accession_id = file.split(';')[8].split('.')[0].replace("_", ".")
 
-                logging.info(f'Virus Family: {virus_family}')
-                logging.info(f'Virus Name: {virus_name}')
-                logging.info(f'Species: {species}')
-                logging.info(f'Probe: {probe}')
-                logging.info(f'Blast Number: {blast_number}/{dir_count}')
-                logging.info(f'Subject Start: {subject_start}')
-                logging.info(f'Subject End: {subject_end}')
-                logging.info(f'Accession ID: {accession_id}')
+                logging.debug(f'Virus Family: {virus_family}')
+                logging.debug(f'Virus Name: {virus_name}')
+                logging.debug(f'Species: {species}')
+                logging.debug(f'Probe: {probe}')
+                logging.debug(f'Blast Number: {blast_number}/{dir_count}')
+                logging.debug(f'Subject Start: {subject_start}')
+                logging.debug(f'Subject End: {subject_end}')
+                logging.debug(f'Reading Frame: {reading_frame}')
+                logging.debug(f'Accession ID: {accession_id}')
 
                 with Entrez.efetch(db="nucleotide",
                                    id=accession_id,
@@ -48,8 +50,8 @@ def seq_expander(expansion_size=Datahub.expansion_size):
                                    seq_stop=subject_end + expansion_size) as handle:
                     record = SeqIO.read(handle, "genbank")
 
-                logging.info(f'Original Sequence Length: {subject_end - subject_start}')
-                logging.info(f'Expanded Sequence Length: {len(record.seq)}')
+                logging.debug(f'Original Sequence Length: {subject_end - subject_start + 1}')
+                logging.debug(f'Expanded Sequence Length: {len(record.seq)}')
 
                 fasta_path = os.path.join('data',
                                           'fastas',

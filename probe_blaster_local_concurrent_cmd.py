@@ -6,6 +6,7 @@ import os
 import subprocess
 import concurrent.futures
 import pickle
+import re
 
 import logging, coloredlogs
 
@@ -25,6 +26,8 @@ class Datahub:
     expansion_switch: str = defaults.EXPANSION_SWITCH  # If 'Y', it expands the returned sequences by 'expansion_size'
     expansion_size: int = defaults.EXPANSION_SIZE
     e_value = defaults.E_VALUE
+    accession_id_regex = defaults.ACCESSION_ID_REGEX
+    accession_id_pattern = re.compile(accession_id_regex)
     seq_records: dict = {}  # Store the sequence records
     full_species: list = bat_species + mammalian_species
     species_db = defaults.SPECIES_DB
@@ -36,8 +39,6 @@ class Datahub:
 
     tblastn_results: dict = {}
 
-
-
 def get_tax_id():
     Entrez.email = Datahub.Entrez_email
     for species_name in Datahub.full_species:
@@ -45,7 +46,6 @@ def get_tax_id():
         record = Entrez.read(search)
         tax_id = record['IdList'][0] if record['IdList'] else None
         Datahub.full_species_taxid[species_name] = tax_id
-
 
 def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_find_counter, db_path, e_value=Datahub.e_value):
     Entrez.email = Datahub.Entrez_email
@@ -84,9 +84,9 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
                     logging.info(f'Alignment: {alignment}')
                     for hsp in alignment.hsps:
                         logging.info(f'HSP: {hsp}')
-                        hsp_length = hsp.sbjct_end - hsp.sbjct_start
+                        hsp_length = hsp.sbjct_end - hsp.sbjct_start + 1
                         if hsp_length >= Datahub.probe_min_length[probe]:
-                            accession_number = alignment.title.split('|')[-1]
+                            accession_number = (Datahub.accession_id_pattern.search(alignment.title.split('|')[-1])).group()
                             logging.info(f'Alignment Title: {alignment.title}')
                             logging.info(f'Accession Number: {accession_number}')
                             key = (f'{virus_family};'
@@ -96,10 +96,10 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
                                    f'n{virus_find_counter};'
                                    f'st-{hsp.sbjct_start};'
                                    f'end-{hsp.sbjct_end};'
+                                   f's{hsp.frame[-1]};'
                                    f'{accession_number.replace(".", "_")}')
 
                             Datahub.tblastn_results[key] = hsp
-
 
                             with Entrez.efetch(db='nucleotide',
                                                id=accession_number,
@@ -109,6 +109,8 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
                                                seq_stop=hsp.sbjct_end) as handle:
                                 record = SeqIO.read(handle, 'fasta')
                                 Datahub.seq_records[key] = record.seq
+                                expected_length = hsp.sbjct_end - hsp.sbjct_start + 1
+                                actual_length = len(record.seq)
                                 # Save the FASTA file
                                 fasta_dir = os.path.join('data', 'fastas', 'tblastn', probe, species, virus_name)
                                 if not os.path.exists(fasta_dir):
@@ -124,20 +126,20 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
                                 logging.debug(f'Alignment: {alignment}')
                                 logging.debug(f'Subject Start: {hsp.sbjct_start}')
                                 logging.debug(f'Subject End: {hsp.sbjct_end}')
-                                logging.debug(f'Verified HSP Length: {hsp_length}')
+                                logging.debug(f'Expected Length: {expected_length}, Actual Length: {actual_length}')
+                                if expected_length != actual_length:
+                                    logging.warning(f'Length mismatch for {key}: Expected {expected_length}, Got {actual_length}')
+                                logging.debug(f'Frame: {hsp.frame}')
                                 logging.info(f'FASTA file with Accession {accession_number} ({virus_name} {virus_find_counter})'
                                       f' saved at {fasta_path}.')
                                 logging.debug(f'#########################################\n\n')
                                 virus_find_counter += 1
-
 
         # Clean up temporary files
         os.remove(str(query_file))
         os.remove(str(output_file))
     except Exception as e:
         logging.warning(f'Warning_2: {str(e)}')
-
-
 
 def fasta_blaster(db_path, e_value=0.009):
     tasks = []
@@ -161,7 +163,6 @@ def fasta_blaster(db_path, e_value=0.009):
     # Save the results to a pickle file
     with open(os.path.join('data', 'pickles', 'tblastn_results.pkl'), 'wb') as output_file:
         pickle.dump(Datahub.tblastn_results, output_file)
-
 
 if __name__ == '__main__':
     # Specify the path to your local BLAST database

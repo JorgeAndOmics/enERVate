@@ -14,6 +14,7 @@ ENTREZ_EMAIL: str = 'jgonzlez@tcd.ie'
 EXPANSION_SIZE: int = 5000
 E_VALUE: float = 0.1
 EXPANSION_SWITCH: str = 'N'
+ACCESSION_ID_REGEX = '[A-Z]*\d*[._]\d*'
 PROBE_MIN_LENGTH: dict = {
     'gag': 0,
     'pol': 0,
@@ -49,3 +50,5 @@ FIELD_STYLES = {
 }
 
 SPECIES_DB = '/mnt/v/databases/local/Rhinolophus_ferrumequinum/Rhinolophus_ferrumequinum'
+FASTA_DIR = os.path.join('data', 'fastas')
+LOG_DIR = os.path.join('data', 'logs')

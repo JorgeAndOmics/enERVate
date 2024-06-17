@@ -47,7 +47,8 @@ def parse_fasta_headers(directory):
                                     "n field": header_parts[4],
                                     "start": int(header_parts[5].split('-')[1]),
                                     "end": int(header_parts[6].split('-')[1]),
-                                    "accession_id": header_parts[7],
+                                    "frame" : header_parts[7],
+                                    "accession_id": header_parts[8],
                                     "sequence": str(record.seq),
                                     "fullpath": filepath
                                 })
@@ -65,17 +66,17 @@ def merge_overlapping_sequences(sequences):
     merged_sequences_dict = {}
 
     try:
-        # Group sequences by accession_id
-        sequences_by_accession = {}
+        # Group sequences by accession_id and frame
+        sequences_by_accession_and_frame = {}
         for seq in sequences:
-            accession_id = seq["accession_id"]
-            if accession_id not in sequences_by_accession:
-                sequences_by_accession[accession_id] = []
-            sequences_by_accession[accession_id].append(seq)
+            key = (seq["accession_id"], seq["frame"].split('s')[-1])
+            if key not in sequences_by_accession_and_frame:
+                sequences_by_accession_and_frame[key] = []
+            sequences_by_accession_and_frame[key].append(seq)
 
-        for accession_id, seqs in sequences_by_accession.items():
+        for (accession_id, frame), seqs in sequences_by_accession_and_frame.items():
             seqs.sort(key=lambda x: x["start"])
-            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}")
+            logging.debug(f"Sequences sorted by start position for accession_id: {accession_id}, frame: {frame}")
 
             current_seq = seqs[0]
             for next_seq in seqs[1:]:
@@ -147,13 +148,14 @@ def write_merged_sequences(original_dir, target_dir, merged_sequences, all_seque
         if seq['accession_id'] not in merged_accession_ids:
             try:
                 shutil.copy(seq['fullpath'], target_dir)
-                logging.info(f"\n Copied unmerged file \n"
+                logging.debug(f"\n Copied unmerged file \n"
                              f"Family: {seq['virus_family']} \n"
                              f"Virus: {seq['virus_name']} \n"
                              f"Host: {seq['species']} \n"
                              f"Probe: {seq['probe']} \n"
                              f"Start: {seq['start']} \n"
                              f"End: {seq['end']} \n"
+                             f"Frame: {seq['frame']} \n"
                              f"Accession ID: {seq['accession_id']} \n")
             except Exception as e:
                 logging.error(f"Error copying file {seq['fullpath']} to {target_dir}: {e}")
