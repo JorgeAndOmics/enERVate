@@ -54,6 +54,8 @@ FIELD_STYLES = {
 }
 
 SPECIES_DB = '/mnt/v/databases/local/Rhinolophus_ferrumequinum/Rhinolophus_ferrumequinum'
+VIRUS_DB = '/mnt/v/databases/refseq_virus_db/virus'
+VIRUS_FASTA = '/mnt/v/databases/refseq_virus_db/viral.1.1.genomic.fna'
 FASTA_DIR = os.path.join('data', 'fastas')
 LOG_DIR = os.path.join('data', 'logs')
 PICKLE_DIR = os.path.join('data', 'pickles')

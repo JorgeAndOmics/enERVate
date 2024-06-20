@@ -7,10 +7,11 @@ import subprocess
 import concurrent.futures
 import pickle
 import re
+from time import sleep
+from urllib.error import HTTPError
 
 import logging, coloredlogs
 
-# Configure coloredlogs with the custom field and level styles
 # Configure coloredlogs with the custom field and level styles
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s', handlers=[
         logging.FileHandler(os.path.join(defaults.LOG_DIR, 'tblastn_log.txt')),
@@ -109,23 +110,38 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
 
                             Datahub.tblastn_results[key] = hsp
 
-                            with Entrez.efetch(db='nucleotide',
-                                               id=accession_number,
-                                               rettype='fasta',
-                                               retmode='text',
-                                               seq_start=hsp.sbjct_start,
-                                               seq_stop=hsp.sbjct_end) as handle:
-                                record = SeqIO.read(handle, 'fasta')
-                                Datahub.seq_records[key] = record.seq
+                            # Fetch additional information using Entrez with retry logic
+                            fetch_record = None
+                            retries = 3
+                            for attempt in range(retries):
+                                try:
+                                    with Entrez.efetch(db='nucleotide',
+                                                       id=accession_number,
+                                                       rettype='fasta',
+                                                       retmode='text',
+                                                       seq_start=hsp.sbjct_start,
+                                                       seq_stop=hsp.sbjct_end) as handle:
+                                        fetch_record = SeqIO.read(handle, 'fasta')
+                                    break
+                                except HTTPError as e:
+                                    if attempt < retries - 1:
+                                        logging.warning(f'HTTP error {e.code} encountered. Retrying... ({attempt + 1}/{retries})')
+                                        sleep(2 ** attempt)  # Exponential backoff
+                                    else:
+                                        logging.error(f'Failed to fetch data after {retries} attempts. Error: {e}')
+                                        return
+
+                            if fetch_record:
+                                Datahub.seq_records[key] = fetch_record.seq
                                 expected_length = hsp.sbjct_end - hsp.sbjct_start + 1
-                                actual_length = len(record.seq)
+                                actual_length = len(fetch_record.seq)
                                 # Save the FASTA file
                                 fasta_dir = os.path.join('data', 'fastas', 'tblastn', probe, species, virus_name)
                                 if not os.path.exists(fasta_dir):
                                     os.makedirs(fasta_dir)
                                 fasta_path = os.path.join(fasta_dir, f'{key}.fasta')
                                 with open(fasta_path, 'w') as output_file:
-                                    SeqIO.write(record, output_file, 'fasta')
+                                    SeqIO.write(fetch_record, output_file, 'fasta')
                                 logging.debug(f'Virus Family: {virus_family}')
                                 logging.debug(f'Virus Name: {virus_name}')
                                 logging.debug(f'Species: {species}')
@@ -147,7 +163,7 @@ def perform_blast(seq_record, species, probe, virus_family, virus_name, virus_fi
         os.remove(str(query_file))
         os.remove(str(output_file))
     except Exception as e:
-        logging.warning(f'Warning_2: {str(e)}')
+        logging.warning(f'Warning: {str(e)}')
 
 def fasta_blaster(db_path, e_value=0.009):
     tasks = []
